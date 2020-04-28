@@ -23,4 +23,4 @@ Former contributors:
 * Arnar Birgisson
 * Luciano Bello
 
-## Node.js Extensions by Harshit Passi (hpp5123@psu.edu) for CSE-597 : Language Based Security
+### Node.js Extensions by Harshit Passi (hpp5123@psu.edu) for CSE-597 : Language Based Security
