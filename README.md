@@ -1,5 +1,5 @@
 # jsflow-plus
-An extension of the security-enhanced JavaScript interpreter JSFlow, to support information flow tracking for node.js APIs
+An extension of the security-enhanced JavaScript interpreter JSFlow, to support information flow tracking for node.js File System and HTTP APIs
 
 # Installation 
 1. Install the dependencies with `npm install`.
