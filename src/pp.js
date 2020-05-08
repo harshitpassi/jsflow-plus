@@ -1,14 +1,10 @@
-/* This Source Code Form is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this
- * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
-
 exports.functor = function(monitor) {
 
-  escodegen = monitor.require('escodegen');
+    escodegen = monitor.require('escodegen');
 
-  var module = {};
+    var module = {};
 
-  module.pretty = escodegen.generate;
+    module.pretty = escodegen.generate;
 
-  return module; 
+    return module;
 };

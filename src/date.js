@@ -1,472 +1,468 @@
-/* This Source Code Form is subject to the terms of the Mozilla Public
- * License, v. 2.0. If a copy of the MPL was not distributed with this
- * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
-
 exports.functor = function(monitor) {
-  
-  var label           = monitor.require('label');
-  var conversion      = monitor.require('conversion');
-  var constants       = monitor.require('constants');
-  var prelude         = monitor.require('prelude');
-  var ecma            = monitor.require('ecma');
-  var error           = monitor.require('error');
-  var _function       = monitor.require('function');
 
-  var Value           = monitor.require('values').Value;
+    var label = monitor.require('label');
+    var conversion = monitor.require('conversion');
+    var constants = monitor.require('constants');
+    var prelude = monitor.require('prelude');
+    var ecma = monitor.require('ecma');
+    var error = monitor.require('error');
+    var _function = monitor.require('function');
 
-  var Ecma            = ecma.Ecma;
-  var BiFO            = _function.BuiltinFunctionObject;
-  var Unimplemented   = _function.Unimplemented;
+    var Value = monitor.require('values').Value;
 
-  var Label           = label.Label;
-  var lub             = label.lub;
-  var le              = label.le;
-  var bot             = Label.bot;
-  var top             = Label.top;
+    var Ecma = ecma.Ecma;
+    var BiFO = _function.BuiltinFunctionObject;
+    var Unimplemented = _function.Unimplemented;
 
-  // ------------------------------------------------------------
+    var Label = label.Label;
+    var lub = label.lub;
+    var le = label.le;
+    var bot = Label.bot;
+    var top = Label.top;
 
-  var module = {};
-  module.DateObject = DateObject;
-  module.allocate = allocate;
+    // ------------------------------------------------------------
 
-  // ------------------------------------------------------------
+    var module = {};
+    module.DateObject = DateObject;
+    module.allocate = allocate;
 
-  function allocate(host) {
-    var dateConstructor = new DateConstructor(host.Date);
-    var datePrototype   = dateConstructor._proto;
+    // ------------------------------------------------------------
 
-    return { DateConstructor : dateConstructor,
-             DatePrototype   : datePrototype 
-           };
-  }
+    function allocate(host) {
+        var dateConstructor = new DateConstructor(host.Date);
+        var datePrototype = dateConstructor._proto;
 
-  // ------------------------------------------------------------
-  // The Date Constructor, 15.9.3
+        return {
+            DateConstructor: dateConstructor,
+            DatePrototype: datePrototype
+        };
+    }
 
-  function DateConstructor(host) {
-    Ecma.call(this);
+    // ------------------------------------------------------------
+    // The Date Constructor, 15.9.3
 
-    this.Prototype  = new Value(monitor.instances.FunctionPrototype,bot);
-    this.Class      = 'Function';
-    this.Extensible = true;
-    this._proto     = new DatePrototype(this, host);
+    function DateConstructor(host) {
+        Ecma.call(this);
 
-    this.host       = host;
+        this.Prototype = new Value(monitor.instances.FunctionPrototype, bot);
+        this.Class = 'Function';
+        this.Extensible = true;
+        this._proto = new DatePrototype(this, host);
 
-    ecma.DefineFFF(this , constants.length    , 7);
-    ecma.DefineFFF(this , constants.prototype , this._proto);
+        this.host = host;
 
-    ecma.DefineTFT(this , constants.parse     , new BiFO(parse  , 0 , Date.parse));
-    ecma.DefineTFT(this , constants.UTC       , new BiFO(UTC    , 0 , Date.UTC));
-    ecma.DefineTFT(this , constants.now       , new BiFO(now    , 0 , Date.now));
-  }
+        ecma.DefineFFF(this, constants.length, 7);
+        ecma.DefineFFF(this, constants.prototype, this._proto);
 
-  prelude.inherits(DateConstructor,Ecma);
-  DateConstructor.prototype.HasInstance = _function.HasInstance;
+        ecma.DefineTFT(this, constants.parse, new BiFO(parse, 0, Date.parse));
+        ecma.DefineTFT(this, constants.UTC, new BiFO(UTC, 0, Date.UTC));
+        ecma.DefineTFT(this, constants.now, new BiFO(now, 0, Date.now));
+    }
 
-  //----------------------------------------------------
-  // 15.9.1.1
-  DateConstructor.prototype.Call = function(thisArg,args) {
-    var str = monitor.instances.DateConstructor.host();
-    return new Value(str,bot);
-  };
+    prelude.inherits(DateConstructor, Ecma);
+    DateConstructor.prototype.HasInstance = _function.HasInstance;
 
-  //----------------------------------------------------
+    //----------------------------------------------------
+    // 15.9.1.1
+    DateConstructor.prototype.Call = function(thisArg, args) {
+        var str = monitor.instances.DateConstructor.host();
+        return new Value(str, bot);
+    };
 
-  // 15.9.3.1
-  DateConstructor.prototype.Construct = function(args) {
-    var _args = [];
-    var label = new Label();
-    var obj;
-    var _Date = monitor.instances.DateConstructor.host;
+    //----------------------------------------------------
 
-    switch (args.length) {
+    // 15.9.3.1
+    DateConstructor.prototype.Construct = function(args) {
+        var _args = [];
+        var label = new Label();
+        var obj;
+        var _Date = monitor.instances.DateConstructor.host;
 
-      case 0 :
-        obj = new DateObject(new _Date(), top);
-        
-      break;
+        switch (args.length) {
 
-      case 1 :
-        var v = conversion.ToPrimitive(args[0]);
-        if (typeof v.value !== 'string') {
-          v = conversion.ToNumber(v);
+            case 0:
+                obj = new DateObject(new _Date(), top);
+
+                break;
+
+            case 1:
+                var v = conversion.ToPrimitive(args[0]);
+                if (typeof v.value !== 'string') {
+                    v = conversion.ToNumber(v);
+                }
+
+                obj = new DateObject(new _Date(v.value), v.label);
+                break;
+
+            default:
+                for (var i = 0, len = args.length; i < len; i++) {
+                    var val = conversion.ToNumber(args[i]);
+                    _args[i] = val.value;
+                    label.lub(val.label);
+                }
+
+                if (len == 2) {
+                    _args[2] = 1;
+                }
+
+                for (; i < 7; i++) {
+                    _args[i] = 0;
+                }
+
+                var date = new _Date(
+                    _args[0], _args[1], _args[2], _args[3], _args[4], _args[5], _args[6]
+                );
+
+                obj = new DateObject(date, label);
         }
 
-        obj = new DateObject(new _Date(v.value), v.label);
-      break;
+        return new Value(obj, bot);
+    };
 
-      default :
+    // ------------------------------------------------------------
+    // parse, 15.9.4.2
+    function parse(thisArg, args) {
+        var string = args[0] || new Value(undefined, bot);
+        string = conversion.ToString(string);
+
+        var number = monitor.instances.DateConstructor.host.parse(string.value);
+        return new Value(number, string.label);
+    }
+
+    // ------------------------------------------------------------
+    // UTC, 15.9.4.3
+    function UTC(thisArg, args) {
+        var _args = [];
+        var label = new Label();
+
         for (var i = 0, len = args.length; i < len; i++) {
-          var val = conversion.ToNumber(args[i]);
-          _args[i] = val.value;
-          label.lub(val.label);
+            var val = conversion.ToNumber(args[i]);
+            _args[i] = val.value;
+            label.lub(val.label);
         }
 
-        if (len == 2) {
-          _args[2] = 1;
+        var number = monitor.instances.DateConstructor.host.UTC.apply(null, _args);
+        return new Value(number, label);
+    }
+
+    // ------------------------------------------------------------
+    // now, 15.9.4.4
+    function now(thisArg, args) {
+
+        var number = monitor.instances.DateConstructor.host.now();
+        return new Value(number, top);
+
+    }
+
+    // ------------------------------------------------------------
+    // The Date Prototype, 15.9.5
+    function DatePrototype(constructor, _Date) {
+        Ecma.call(this);
+        this.Class = 'Date';
+        this.PrimitiveValue = new Value(NaN, bot);
+        this.Prototype = new Value(monitor.instances.ObjectPrototype, bot);
+
+        this.host = _Date.prototype;
+
+        ecma.DefineFFF(this, constants.length, 0);
+        ecma.DefineTFT(this, constants.constructor, constructor);
+        ecma.DefineTFT(this, constants.toString, new BiFO(toString, 0, _Date.prototype.toString));
+        ecma.DefineTFT(this, constants.toDateString, new BiFO(toDateString, 0, _Date.prototype.toDateString));
+        ecma.DefineTFT(this, constants.toTimeString, new BiFO(toTimeString, 0, _Date.prototype.toTimeString));
+        ecma.DefineTFT(this, constants.toLocaleString, new BiFO(toLocaleString, 0, _Date.prototype.toLocaleString));
+        ecma.DefineTFT(this, constants.toLocaleDateString, new BiFO(toLocaleDateString, 0, _Date.prototype.toLocaleDateString));
+        ecma.DefineTFT(this, constants.toLocaleTimeString, new BiFO(toLocaleTimeString, 0, _Date.prototype.toLocaleTimeString));
+        ecma.DefineTFT(this, constants.valueOf, new BiFO(valueOf, 0, _Date.prototype.valueOf));
+        ecma.DefineTFT(this, constants.getTime, new BiFO(getTime, 0, _Date.prototype.getTime));
+        ecma.DefineTFT(this, constants.getFullYear, new BiFO(getFullYear, 0, _Date.prototype.getFullYear));
+        ecma.DefineTFT(this, constants.getUTCFullYear, new BiFO(getUTCFullYear, 0, _Date.prototype.getUTCFullYear));
+        ecma.DefineTFT(this, constants.getMonth, new BiFO(getMonth, 0, _Date.prototype.getMonth));
+        ecma.DefineTFT(this, constants.getUTCMonth, new BiFO(getUTCMonth, 0, _Date.prototype.getUTCMonth));
+        ecma.DefineTFT(this, constants.getDate, new BiFO(getDate, 0, _Date.prototype.getDate));
+        ecma.DefineTFT(this, constants.getUTCDate, new BiFO(getUTCDate, 0, _Date.prototype.getUTCDate));
+        ecma.DefineTFT(this, constants.getDay, new BiFO(getDay, 0, _Date.prototype.getDay));
+        ecma.DefineTFT(this, constants.getUTCDay, new BiFO(getUTCDay, 0, _Date.prototype.getUTCDay));
+        ecma.DefineTFT(this, constants.getHours, new BiFO(getHours, 0, _Date.prototype.getHours));
+        ecma.DefineTFT(this, constants.getUTCHours, new BiFO(getUTCHours, 0, _Date.prototype.getUTCHours));
+        ecma.DefineTFT(this, constants.getMinutes, new BiFO(getMinutes, 0, _Date.prototype.getMinutes));
+        ecma.DefineTFT(this, constants.getUTCMinutes, new BiFO(getUTCMinutes, 0, _Date.prototype.getUTCMinutes));
+        ecma.DefineTFT(this, constants.getSeconds, new BiFO(getSeconds, 0, _Date.prototype.getSeconds));
+        ecma.DefineTFT(this, constants.getUTCSeconds, new BiFO(getUTCSeconds, 0, _Date.prototype.getUTCSeconds));
+        ecma.DefineTFT(this, constants.getMilliseconds, new BiFO(getMilliseconds, 0, _Date.prototype.getMilliseconds));
+        ecma.DefineTFT(this, constants.getUTCMilliseconds, new BiFO(getUTCMilliseconds, 0, _Date.prototype.getUTCMilliseconds));
+        ecma.DefineTFT(this, constants.getTimezoneOffset, new BiFO(getTimezoneOffset, 0, _Date.prototype.getTimezoneOffset));
+        ecma.DefineTFT(this, constants.setTime, new BiFO(setTime, 1, _Date.prototype.setTime));
+        ecma.DefineTFT(this, constants.setMilliseconds, new BiFO(setMilliseconds, 0, _Date.prototype.setMilliseconds));
+        ecma.DefineTFT(this, constants.setUTCMilliseconds, new BiFO(setUTCMilliseconds, 0, _Date.prototype.setUTCMilliseconds));
+        ecma.DefineTFT(this, constants.setSeconds, new BiFO(setSeconds, 0, _Date.prototype.setSeconds));
+        ecma.DefineTFT(this, constants.setUTCSeconds, new BiFO(setUTCSeconds, 0, _Date.prototype.setUTCSeconds));
+        ecma.DefineTFT(this, constants.setMinutes, new BiFO(setMinutes, 0, _Date.prototype.setMinutes));
+        ecma.DefineTFT(this, constants.setUTCMinutes, new BiFO(setUTCMinutes, 0, _Date.prototype.setUTCMinutes));
+        ecma.DefineTFT(this, constants.setHours, new BiFO(setHours, 0, _Date.prototype.setHours));
+        ecma.DefineTFT(this, constants.setUTCHours, new BiFO(setUTCHours, 0, _Date.prototype.setUTCHours));
+        ecma.DefineTFT(this, constants.setDate, new BiFO(setDate, 0, _Date.prototype.setDate));
+        ecma.DefineTFT(this, constants.setUTCDate, new BiFO(setUTCDate, 0, _Date.prototype.setUTCDate));
+        ecma.DefineTFT(this, constants.setMonth, new BiFO(setMonth, 2, _Date.prototype.setMonth));
+        ecma.DefineTFT(this, constants.setUTCMonth, new BiFO(setUTCMonth, 0, _Date.prototype.setUTCMonth));
+        ecma.DefineTFT(this, constants.setFullYear, new BiFO(setFullYear, 0, _Date.prototype.setFullYear));
+        ecma.DefineTFT(this, constants.setUTCFullYear, new BiFO(setUTCFullYear, 0, _Date.prototype.setUTCFullYear));
+        ecma.DefineTFT(this, constants.toUTCString, new BiFO(toUTCString, 0, _Date.prototype.toUTCString));
+        ecma.DefineTFT(this, constants.toISOString, new BiFO(toISOString, 0, _Date.prototype.toISOString));
+        ecma.DefineTFT(this, constants.toJSON, new BiFO(toJSON, 0, _Date.prototype.toJSON));
+
+        // B.2.6 - used by google analytics
+        ecma.DefineTFT(this, new Value('toGMTString', bot), new BiFO(toUTCString, 0, _Date.prototype.toGTMString));
+    }
+
+    prelude.inherits(DatePrototype, Ecma);
+
+    function assertDate(v, caller) {
+
+        if (v.value === null || typeof v.value !== 'object' || v.value.Class !== 'Date') {
+            monitor.context.pushPC(v.label);
+            monitor.Throw(
+                monitor.modules.error.TypeErrorObject,
+                caller + ' is not generic',
+                bot
+            );
         }
 
-        for (; i < 7; i++) {
-          _args[i] = 0;
-        }
-
-        var date = new _Date( 
-          _args[0], _args[1], _args[2], _args[3], _args[4], _args[5], _args[6]
-        );
-
-        obj = new DateObject(date,label);
     }
 
-    return new Value(obj,bot);
-  };
-  
-  // ------------------------------------------------------------
-  // parse, 15.9.4.2
-  function parse(thisArg,args) {
-    var string = args[0] || new Value(undefined,bot);
-    string = conversion.ToString(string);
+    // ------------------------------------------------------------
 
-    var number = monitor.instances.DateConstructor.host.parse(string.value);
-    return new Value(number,string.label);
-  }
+    function mkGenericGet(fname) {
+        return function(thisArg, args) {
+            assertDate(thisArg, fname);
 
-  // ------------------------------------------------------------
-  // UTC, 15.9.4.3
-  function UTC(thisArg,args) {
-    var _args = [];
-    var label = new Label();
+            var label = lub(thisArg.label, thisArg.value.PrimitiveLabel);
+            var date = thisArg.value.PrimitiveValue;
 
-    for (var i = 0, len = args.length; i < len; i++) {
-      var val = conversion.ToNumber(args[i]);
-      _args[i] = val.value;
-      label.lub(val.label);
+            var value = date[fname].call(date);
+
+            return new Value(value, label);
+        };
     }
 
-    var number = monitor.instances.DateConstructor.host.UTC.apply(null,_args);
-    return new Value(number, label);
-  }
+    // ------------------------------------------------------------
 
-  // ------------------------------------------------------------
-  // now, 15.9.4.4
-  function now(thisArg,args) {
+    function mkGenericSet(fname) {
+        return function(thisArg, args) {
+            assertDate(thisArg, fname);
 
-    var number = monitor.instances.DateConstructor.host.now();
-    return new Value(number, top);
+            var context = lub(thisArg.label, monitor.context.effectivePC);
 
-  }
+            monitor.assert(le(context, thisArg.value.PrimitiveLabel),
+                fname + ': context ' + context + ' not below state label of Date object ' + thisArg.value.PrimitiveLabel
+            );
 
-  // ------------------------------------------------------------
-  // The Date Prototype, 15.9.5
-  function DatePrototype(constructor, _Date) {
-    Ecma.call(this);
-    this.Class          = 'Date';
-    this.PrimitiveValue = new Value(NaN,bot);
-    this.Prototype      = new Value(monitor.instances.ObjectPrototype,bot);
+            var _args = [];
+            var label = new Label();
 
-    this.host           = _Date.prototype;
+            for (var i = 0, len = args.length; i < len; i++) {
+                var x = conversion.ToNumber(args[i]);
+                label.lub(x.label);
+                _args[i] = x.value;
+            }
 
-    ecma.DefineFFF(this , constants.length           , 0);
-    ecma.DefineTFT(this , constants.constructor,constructor);
-    ecma.DefineTFT(this , constants.toString           , new BiFO(toString           , 0, _Date.prototype.toString));
-    ecma.DefineTFT(this , constants.toDateString       , new BiFO(toDateString       , 0, _Date.prototype.toDateString));
-    ecma.DefineTFT(this , constants.toTimeString       , new BiFO(toTimeString       , 0, _Date.prototype.toTimeString));
-    ecma.DefineTFT(this , constants.toLocaleString     , new BiFO(toLocaleString     , 0, _Date.prototype.toLocaleString));
-    ecma.DefineTFT(this , constants.toLocaleDateString , new BiFO(toLocaleDateString , 0, _Date.prototype.toLocaleDateString));
-    ecma.DefineTFT(this , constants.toLocaleTimeString , new BiFO(toLocaleTimeString , 0, _Date.prototype.toLocaleTimeString));
-    ecma.DefineTFT(this , constants.valueOf            , new BiFO(valueOf            , 0, _Date.prototype.valueOf));
-    ecma.DefineTFT(this , constants.getTime            , new BiFO(getTime            , 0, _Date.prototype.getTime));
-    ecma.DefineTFT(this , constants.getFullYear        , new BiFO(getFullYear        , 0, _Date.prototype.getFullYear));
-    ecma.DefineTFT(this , constants.getUTCFullYear     , new BiFO(getUTCFullYear     , 0, _Date.prototype.getUTCFullYear));
-    ecma.DefineTFT(this , constants.getMonth           , new BiFO(getMonth           , 0, _Date.prototype.getMonth));
-    ecma.DefineTFT(this , constants.getUTCMonth        , new BiFO(getUTCMonth        , 0, _Date.prototype.getUTCMonth));
-    ecma.DefineTFT(this , constants.getDate            , new BiFO(getDate            , 0, _Date.prototype.getDate));
-    ecma.DefineTFT(this , constants.getUTCDate         , new BiFO(getUTCDate         , 0, _Date.prototype.getUTCDate));
-    ecma.DefineTFT(this , constants.getDay             , new BiFO(getDay             , 0, _Date.prototype.getDay));
-    ecma.DefineTFT(this , constants.getUTCDay          , new BiFO(getUTCDay          , 0, _Date.prototype.getUTCDay));
-    ecma.DefineTFT(this , constants.getHours           , new BiFO(getHours           , 0, _Date.prototype.getHours));
-    ecma.DefineTFT(this , constants.getUTCHours        , new BiFO(getUTCHours        , 0, _Date.prototype.getUTCHours));
-    ecma.DefineTFT(this , constants.getMinutes         , new BiFO(getMinutes         , 0, _Date.prototype.getMinutes));
-    ecma.DefineTFT(this , constants.getUTCMinutes      , new BiFO(getUTCMinutes      , 0, _Date.prototype.getUTCMinutes));
-    ecma.DefineTFT(this , constants.getSeconds         , new BiFO(getSeconds         , 0, _Date.prototype.getSeconds));
-    ecma.DefineTFT(this , constants.getUTCSeconds      , new BiFO(getUTCSeconds      , 0, _Date.prototype.getUTCSeconds));
-    ecma.DefineTFT(this , constants.getMilliseconds    , new BiFO(getMilliseconds    , 0, _Date.prototype.getMilliseconds));
-    ecma.DefineTFT(this , constants.getUTCMilliseconds , new BiFO(getUTCMilliseconds , 0, _Date.prototype.getUTCMilliseconds));
-    ecma.DefineTFT(this , constants.getTimezoneOffset  , new BiFO(getTimezoneOffset  , 0, _Date.prototype.getTimezoneOffset));
-    ecma.DefineTFT(this , constants.setTime            , new BiFO(setTime            , 1, _Date.prototype.setTime));
-    ecma.DefineTFT(this , constants.setMilliseconds    , new BiFO(setMilliseconds    , 0, _Date.prototype.setMilliseconds));
-    ecma.DefineTFT(this , constants.setUTCMilliseconds , new BiFO(setUTCMilliseconds , 0, _Date.prototype.setUTCMilliseconds));
-    ecma.DefineTFT(this , constants.setSeconds         , new BiFO(setSeconds         , 0, _Date.prototype.setSeconds));
-    ecma.DefineTFT(this , constants.setUTCSeconds      , new BiFO(setUTCSeconds      , 0, _Date.prototype.setUTCSeconds));
-    ecma.DefineTFT(this , constants.setMinutes         , new BiFO(setMinutes         , 0, _Date.prototype.setMinutes));
-    ecma.DefineTFT(this , constants.setUTCMinutes      , new BiFO(setUTCMinutes      , 0, _Date.prototype.setUTCMinutes));
-    ecma.DefineTFT(this , constants.setHours           , new BiFO(setHours           , 0, _Date.prototype.setHours));
-    ecma.DefineTFT(this , constants.setUTCHours        , new BiFO(setUTCHours        , 0, _Date.prototype.setUTCHours));
-    ecma.DefineTFT(this , constants.setDate            , new BiFO(setDate            , 0, _Date.prototype.setDate));
-    ecma.DefineTFT(this , constants.setUTCDate         , new BiFO(setUTCDate         , 0, _Date.prototype.setUTCDate));
-    ecma.DefineTFT(this , constants.setMonth           , new BiFO(setMonth           , 2, _Date.prototype.setMonth));
-    ecma.DefineTFT(this , constants.setUTCMonth        , new BiFO(setUTCMonth        , 0, _Date.prototype.setUTCMonth));
-    ecma.DefineTFT(this , constants.setFullYear        , new BiFO(setFullYear        , 0, _Date.prototype.setFullYear));
-    ecma.DefineTFT(this , constants.setUTCFullYear     , new BiFO(setUTCFullYear     , 0, _Date.prototype.setUTCFullYear));
-    ecma.DefineTFT(this , constants.toUTCString        , new BiFO(toUTCString        , 0, _Date.prototype.toUTCString));
-    ecma.DefineTFT(this , constants.toISOString        , new BiFO(toISOString        , 0, _Date.prototype.toISOString));
-    ecma.DefineTFT(this , constants.toJSON             , new BiFO(toJSON             , 0, _Date.prototype.toJSON));
+            thisArg.value.PrimitiveLabel = lub(thisArg.value.PrimitiveLabel, label);
+            label = lub(thisArg.label, thisArg.value.PrimitiveLabel);
 
-    // B.2.6 - used by google analytics
-    ecma.DefineTFT(this , new Value('toGMTString' , bot) , new BiFO(toUTCString , 0, _Date.prototype.toGTMString));
-  }
+            var date = thisArg.value.PrimitiveValue;
+            var value = date[fname].apply(date, _args);
 
-  prelude.inherits(DatePrototype,Ecma);
+            return new Value(value, label);
+        };
+    }
+    // ------------------------------------------------------------
+    // toISOString, 15.9.5.43
+    var toISOString = mkGenericGet('toISOString');
 
-  function assertDate(v, caller) {
-    
-    if (v.value === null || typeof v.value !== 'object' || v.value.Class !== 'Date') {
-      monitor.context.pushPC(v.label);
-      monitor.Throw(
-        monitor.modules.error.TypeErrorObject,
-        caller + ' is not generic',
-        bot
-      );
+    // ------------------------------------------------------------
+    // toString, 15.9.5.2
+    var toString = mkGenericGet('toString');
+
+    // ------------------------------------------------------------
+    // toDateString, 15.9.5.?
+    var toDateString = mkGenericGet('toDateString');
+
+    // ------------------------------------------------------------
+    // toTimeString, 15.9.5.?
+    var toTimeString = mkGenericGet('toTimeString');
+
+    // ------------------------------------------------------------
+    // toLocaleString, 15.9.5.?
+    var toLocaleString = mkGenericGet('toLocaleString');
+
+    // ------------------------------------------------------------
+    // toLocaleDateString, 15.9.5.?
+    var toLocaleDateString = mkGenericGet('toLocaleDateString');
+
+    // ------------------------------------------------------------
+    // toLocaleTimeString, 15.9.5.?
+    var toLocaleTimeString = mkGenericGet('toLocaleTimeString');
+
+    // ------------------------------------------------------------
+    // valueOf, 15.9.5.?
+    function valueOf(thisArg, args) {
+        assertDate(thisArg, 'valueOf');
+        return new Value(thisArg.value.PrimitiveValue.valueOf(), thisArg.label);
     }
 
-  }
+    // ------------------------------------------------------------
+    // getTime, 15.9.5.9
+    var getTime = mkGenericGet('getTime');
 
-  // ------------------------------------------------------------
-  
-  function mkGenericGet(fname) {
-    return function(thisArg, args) {
-      assertDate(thisArg, fname);
-      
-      var label = lub(thisArg.label, thisArg.value.PrimitiveLabel);
-      var date  = thisArg.value.PrimitiveValue;
+    // ------------------------------------------------------------
+    // getFullYear, 15.9.5.?
+    var getFullYear = mkGenericGet('getFullYear');
 
-      var value = date[fname].call(date);
+    // ------------------------------------------------------------
+    // getUTCFullYear, 15.9.5.?
+    var getUTCFullYear = mkGenericGet('getUTCFullYear');
 
-      return new Value(value,label);
-    };
-  }
+    // ------------------------------------------------------------
+    // getMonth, 15.9.5.?
+    var getMonth = mkGenericGet('getMonth');
 
-  // ------------------------------------------------------------
+    // ------------------------------------------------------------
+    // getUTCMonth, 15.9.5.?
+    var getUTCMonth = mkGenericGet('getUTCMonth');
 
-  function mkGenericSet(fname) {
-    return function(thisArg,args) {
-      assertDate(thisArg, fname);
+    // ------------------------------------------------------------
+    // getDate, 15.9.5.?
+    var getDate = mkGenericGet('getDate');
 
-      var context = lub(thisArg.label, monitor.context.effectivePC);
+    // ------------------------------------------------------------
+    // getUTCDate, 15.9.5.?
+    var getUTCDate = mkGenericGet('getUTCDate');
 
-      monitor.assert(le(context, thisArg.value.PrimitiveLabel),
-        fname + ': context ' + context + ' not below state label of Date object ' + thisArg.value.PrimitiveLabel
-      );
+    // ------------------------------------------------------------
+    // getDay, 15.9.5.?
+    var getDay = mkGenericGet('getDay');
 
-      var _args = [];
-      var label = new Label();
+    // ------------------------------------------------------------
+    // getUTCDay, 15.9.5.?
+    var getUTCDay = mkGenericGet('getUTCDay');
 
-      for (var i = 0, len = args.length; i < len; i++) {
-        var x = conversion.ToNumber(args[i]);
-        label.lub(x.label);
-        _args[i] = x.value;
-      }
+    // ------------------------------------------------------------
+    // getHours, 15.9.5.?
+    var getHours = mkGenericGet('getHours');
 
-      thisArg.value.PrimitiveLabel = lub(thisArg.value.PrimitiveLabel, label);
-      label = lub(thisArg.label, thisArg.value.PrimitiveLabel);
+    // ------------------------------------------------------------
+    // getUTCHours, 15.9.5.?
+    var getUTCHours = mkGenericGet('getUTCHours');
 
-      var date  = thisArg.value.PrimitiveValue;
-      var value = date[fname].apply(date, _args);
+    // ------------------------------------------------------------
+    // getMinutes, 15.9.5.?
+    var getMinutes = mkGenericGet('getMinutes');
 
-      return new Value(value,label);
-    };
-  }
-  // ------------------------------------------------------------
-  // toISOString, 15.9.5.43
-  var toISOString = mkGenericGet('toISOString');
+    // ------------------------------------------------------------
+    // getUTCMinutes, 15.9.5.?
+    var getUTCMinutes = mkGenericGet('getUTCMinutes');
 
-  // ------------------------------------------------------------
-  // toString, 15.9.5.2
-  var toString = mkGenericGet('toString');
+    // ------------------------------------------------------------
+    // getSeconds, 15.9.5.?
+    var getSeconds = mkGenericGet('getSeconds');
 
-  // ------------------------------------------------------------
-  // toDateString, 15.9.5.?
-  var toDateString = mkGenericGet('toDateString');
-  
-  // ------------------------------------------------------------
-  // toTimeString, 15.9.5.?
-  var toTimeString = mkGenericGet('toTimeString');
-  
-  // ------------------------------------------------------------
-  // toLocaleString, 15.9.5.?
-  var toLocaleString = mkGenericGet('toLocaleString');
-  
-  // ------------------------------------------------------------
-  // toLocaleDateString, 15.9.5.?
-  var toLocaleDateString = mkGenericGet('toLocaleDateString');
-  
-  // ------------------------------------------------------------
-  // toLocaleTimeString, 15.9.5.?
-  var toLocaleTimeString = mkGenericGet('toLocaleTimeString');
-  
-  // ------------------------------------------------------------
-  // valueOf, 15.9.5.?
-  function valueOf(thisArg, args) {
-    assertDate(thisArg, 'valueOf');
-    return new Value(thisArg.value.PrimitiveValue.valueOf(), thisArg.label);
-  }
-  
-  // ------------------------------------------------------------
-  // getTime, 15.9.5.9
-  var getTime = mkGenericGet('getTime');
-  
-  // ------------------------------------------------------------
-  // getFullYear, 15.9.5.?
-  var getFullYear = mkGenericGet('getFullYear');
-  
-  // ------------------------------------------------------------
-  // getUTCFullYear, 15.9.5.?
-  var getUTCFullYear = mkGenericGet('getUTCFullYear');
-  
-  // ------------------------------------------------------------
-  // getMonth, 15.9.5.?
-  var getMonth = mkGenericGet('getMonth');
+    // ------------------------------------------------------------
+    // getUTCSeconds, 15.9.5.?
+    var getUTCSeconds = mkGenericGet('getUTCSeconds');
 
-  // ------------------------------------------------------------
-  // getUTCMonth, 15.9.5.?
-  var getUTCMonth = mkGenericGet('getUTCMonth');
-  
-  // ------------------------------------------------------------
-  // getDate, 15.9.5.?
-  var getDate = mkGenericGet('getDate');
+    // ------------------------------------------------------------
+    // getMilliseconds, 15.9.5.?
+    var getMilliseconds = mkGenericGet('getMilliseconds');
 
-  // ------------------------------------------------------------
-  // getUTCDate, 15.9.5.?
-  var getUTCDate = mkGenericGet('getUTCDate');
-  
-  // ------------------------------------------------------------
-  // getDay, 15.9.5.?
-  var getDay = mkGenericGet('getDay');
+    // ------------------------------------------------------------
+    // getUTCMilliseconds, 15.9.5.?
+    var getUTCMilliseconds = mkGenericGet('getUTCMilliseconds');
 
-  // ------------------------------------------------------------
-  // getUTCDay, 15.9.5.?
-  var getUTCDay = mkGenericGet('getUTCDay');
-  
-  // ------------------------------------------------------------
-  // getHours, 15.9.5.?
-  var getHours = mkGenericGet('getHours');
-  
-  // ------------------------------------------------------------
-  // getUTCHours, 15.9.5.?
-  var getUTCHours = mkGenericGet('getUTCHours');
+    // ------------------------------------------------------------
+    // getTimezoneOffset, 15.9.5.?
+    var getTimezoneOffset = mkGenericGet('getTimezoneOffset');
 
-  // ------------------------------------------------------------
-  // getMinutes, 15.9.5.?
-  var getMinutes = mkGenericGet('getMinutes');
-  
-  // ------------------------------------------------------------
-  // getUTCMinutes, 15.9.5.?
-  var getUTCMinutes = mkGenericGet('getUTCMinutes');
+    // ------------------------------------------------------------
+    // setTime, 15.9.5.?
+    var setTime = mkGenericSet('setTime');
 
-  // ------------------------------------------------------------
-  // getSeconds, 15.9.5.?
-  var getSeconds = mkGenericGet('getSeconds');
-  
-  // ------------------------------------------------------------
-  // getUTCSeconds, 15.9.5.?
-  var getUTCSeconds = mkGenericGet('getUTCSeconds');
+    // ------------------------------------------------------------
+    // setMilliseconds, 15.9.5.?
+    var setMilliseconds = mkGenericSet('setMilliseconds');
 
-  // ------------------------------------------------------------
-  // getMilliseconds, 15.9.5.?
-  var getMilliseconds = mkGenericGet('getMilliseconds');
-  
-  // ------------------------------------------------------------
-  // getUTCMilliseconds, 15.9.5.?
-  var getUTCMilliseconds = mkGenericGet('getUTCMilliseconds');
-  
-  // ------------------------------------------------------------
-  // getTimezoneOffset, 15.9.5.?
-  var getTimezoneOffset = mkGenericGet('getTimezoneOffset');
+    // ------------------------------------------------------------
+    // setUTCMilliseconds, 15.9.5.?
+    var setUTCMilliseconds = mkGenericSet('setUTCMilliseconds');
 
-  // ------------------------------------------------------------
-  // setTime, 15.9.5.?
-  var setTime = mkGenericSet('setTime');
+    // ------------------------------------------------------------
+    // setSeconds, 15.9.5.?
+    var setSeconds = mkGenericSet('setSeconds');
 
-  // ------------------------------------------------------------
-  // setMilliseconds, 15.9.5.?
-  var setMilliseconds = mkGenericSet('setMilliseconds');
+    // ------------------------------------------------------------
+    // setUTCSeconds, 15.9.5.?
+    var setUTCSeconds = mkGenericSet('setUTCSeconds');
 
-  // ------------------------------------------------------------
-  // setUTCMilliseconds, 15.9.5.?
-  var setUTCMilliseconds = mkGenericSet('setUTCMilliseconds');
+    // ------------------------------------------------------------
+    // setMinutes, 15.9.5.?
+    var setMinutes = mkGenericSet('setMinutes');
 
-  // ------------------------------------------------------------
-  // setSeconds, 15.9.5.?
-  var setSeconds = mkGenericSet('setSeconds');
+    // ------------------------------------------------------------
+    // setUTCMinutes, 15.9.5.?
+    var setUTCMinutes = mkGenericSet('setUTCMinutes');
 
-  // ------------------------------------------------------------
-  // setUTCSeconds, 15.9.5.?
-  var setUTCSeconds = mkGenericSet('setUTCSeconds');
+    // ------------------------------------------------------------
+    // setHours, 15.9.5.?
+    var setHours = mkGenericSet('setHours');
 
-  // ------------------------------------------------------------
-  // setMinutes, 15.9.5.?
-  var setMinutes = mkGenericSet('setMinutes');
+    // ------------------------------------------------------------
+    // setUTCHours, 15.9.5.?
+    var setUTCHours = mkGenericSet('setUTCHours');
 
-  // ------------------------------------------------------------
-  // setUTCMinutes, 15.9.5.?
-  var setUTCMinutes = mkGenericSet('setUTCMinutes');
+    // ------------------------------------------------------------
+    // setDate, 15.9.5.?
+    var setDate = mkGenericSet('setDate');
 
-  // ------------------------------------------------------------
-  // setHours, 15.9.5.?
-  var setHours = mkGenericSet('setHours');
+    // ------------------------------------------------------------
+    // setUTCDate, 15.9.5.?
+    var setUTCDate = mkGenericSet('setUTCDate');
 
-  // ------------------------------------------------------------
-  // setUTCHours, 15.9.5.?
-  var setUTCHours = mkGenericSet('setUTCHours');
+    // ------------------------------------------------------------
+    // setMonth, 15.9.5.?
+    var setMonth = mkGenericSet('setMonth');
 
-  // ------------------------------------------------------------
-  // setDate, 15.9.5.?
-  var setDate = mkGenericSet('setDate');
+    // ------------------------------------------------------------
+    // setUTCMonth, 15.9.5.?
+    var setUTCMonth = mkGenericSet('setUTCMonth');
 
-  // ------------------------------------------------------------
-  // setUTCDate, 15.9.5.?
-  var setUTCDate = mkGenericSet('setUTCDate');
+    // ------------------------------------------------------------
+    // setFullYear, 15.9.5.?
+    var setFullYear = mkGenericSet('setFullYear');
 
-  // ------------------------------------------------------------
-  // setMonth, 15.9.5.?
-  var setMonth = mkGenericSet('setMonth');
+    // ------------------------------------------------------------
+    // setUTCFullYear, 15.9.5.?
+    var setUTCFullYear = mkGenericSet('setUTCFullYear');
 
-  // ------------------------------------------------------------
-  // setUTCMonth, 15.9.5.?
-  var setUTCMonth = mkGenericSet('setUTCMonth');
+    // ------------------------------------------------------------
+    // toUTCString, 15.9.5.?
+    var toUTCString = mkGenericGet('toUTCString');
 
-  // ------------------------------------------------------------
-  // setFullYear, 15.9.5.?
-  var setFullYear = mkGenericSet('setFullYear');
+    // ------------------------------------------------------------
+    // toJSON, 15.9.5.?
+    var toJSON = mkGenericGet('toJSON');
 
-  // ------------------------------------------------------------
-  // setUTCFullYear, 15.9.5.?
-  var setUTCFullYear = mkGenericSet('setUTCFullYear');
+    // ------------------------------------------------------------
+    // Date Object, 15.9.5
 
-  // ------------------------------------------------------------
-  // toUTCString, 15.9.5.?
-  var toUTCString = mkGenericGet('toUTCString'); 
-  
-  // ------------------------------------------------------------
-  // toJSON, 15.9.5.?
-  var toJSON = mkGenericGet('toJSON');
+    function DateObject(date, label) {
+        Ecma.call(this);
 
-  // ------------------------------------------------------------
-  // Date Object, 15.9.5
+        this.Class = 'Date';
+        this.PrimitiveValue = date;
+        this.PrimitiveLabel = label;
+        this.Extensible = true;
+        this.Prototype = new Value(monitor.instances.DatePrototype, bot);
+    }
 
-  function DateObject(date, label) {
-    Ecma.call(this);
+    prelude.inherits(DateObject, Ecma);
 
-    this.Class          = 'Date';
-    this.PrimitiveValue = date;
-    this.PrimitiveLabel = label;
-    this.Extensible     = true;
-    this.Prototype      = new Value(monitor.instances.DatePrototype,bot);
-  }
-
-  prelude.inherits(DateObject,Ecma);
-
-  return module;
+    return module;
 };
-

@@ -1,0 +1,37 @@
+    <div class="sidebar pure-u-1 pure-u-md-1-4">
+        <img class="logo" alt="Raven" height="204" width="184" src="img/common/raven.png">
+        <div class="header">
+            <h1 class="brand-title">Hrafn</h1>
+            <h2 class="brand-tagline">Post your stuff</h2>
+
+{{#if loggedin}}
+            <form class="pure-form pure-form-aligned" method="post" action="/logout">
+                    <legend> </legend>
+                <fieldset>
+                    <div class="pure-control-group"> {{name}} </div>
+                    <div class="pure-control-group">
+                      <button type="submit" class="pure-button pure-button-primary">Sign out</button>
+                    </div>
+                </fieldset>
+            </form>
+{{^}}
+            <form class="pure-form pure-form-aligned" method="post" action="/login">
+                    <legend> </legend>
+                <fieldset>
+                    <div class="pure-control-group">
+                      <input name="username" type="text" placeholder="Username">
+                    </div>
+                    <div class="pure-control-group">
+                      <input name="password" type="password" placeholder="Password">
+                    </div>
+                    <div class="pure-control-group">
+                      <button id="login" type="submit" class="pure-button pure-button-primary">Sign in</button>
+                    </div>
+                </fieldset>
+            </form>
+{{/if}}
+        </div>
+    </div>
+
+
+
