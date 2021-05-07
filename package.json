@@ -8,7 +8,7 @@
     "escodegen": "^1.8.x",
     "estraverse": "^4.1.x",
     "source-map": "^0.1.43",
-    "underscore": "^1.8.0"
+    "underscore": "^1.12.1"
   },
   "directories": {
     "test": "tests"
