@@ -9,7 +9,7 @@
   "dependencies": {
     "express": "~4.9.x",
     "cors": "~2.7.x",
-    "express-handlebars": "~2.0.x",
+    "express-handlebars": "~5.3.x",
     "body-parser": "~1.13.x"
   },
   "engines": {
